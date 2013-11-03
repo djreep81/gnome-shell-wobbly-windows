@@ -7,7 +7,9 @@ For Gnome shell users, please activeate this extention via https://extensions.gn
 
 To avoid 'tearing' in the graphics alter the file /etc/enviornment to add the following lines: 
 
-CLUTTER_PAINT=disable-clipped-redraws:disable-culling h
+
+CLUTTER_PAINT=disable-clipped-redraws:disable-culling
+
 CLUTTER_VBLANK=True
 
 
