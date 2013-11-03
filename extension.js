@@ -7,11 +7,11 @@ const Cogl = imports.gi.Cogl;
 const Clutter = imports.gi.Clutter;
 const Meta = imports.gi.Meta;
 
-const X_TILES = 8;
-const Y_TILES = 8;
+const X_TILES = 4;
+const Y_TILES = 4;
 const FRICTION = 2;
-const SPRING_K = 14;
-const MASS = 15;
+const SPRING_K = 7;
+const MASS = 8;
 
 const WobblyWindowObject = new Lang.Class({
     Name: 'WobblyWindowObject',
@@ -40,6 +40,7 @@ const WobblyWindowObject = new Lang.Class({
     },
 
     step: function(friction, k) {
+
         if (this.immobile) {
             this.velX = 0;
             this.velY = 0;
@@ -102,9 +103,15 @@ const WobblyWindowEffect = new Lang.Class({
         this.isWobbling = false;
         this._hasModel = false;
         this._anchorObject = null;
+        this._oldX = null;
+        this._oldY = null;
+        this._oldW = null;
+        this._oldH = null;
     },
 
     _setAnchorObject: function(obj) {
+//        log('setAnchorObject');
+
         if (this._anchorObject)
             this._anchorObject.immobile = false;
 
@@ -114,7 +121,12 @@ const WobblyWindowEffect = new Lang.Class({
             this._anchorObject.immobile = true;
     },
 
+    /*
+     * returns model-object at coordinates (x,y)
+     */
     _objectAt: function(x, y) {
+//        log('objectAt');
+
         let yTiles = this.y_tiles + 1;
         let obj = this.objects[y * yTiles + x];
         if (!obj)
@@ -122,34 +134,48 @@ const WobblyWindowEffect = new Lang.Class({
         return obj;
     },
 
+    /*
+     * returns dimensions of an actor
+     */
     _getActorDimensions: function() {
+//        log('getActorDimmensions');
+
         let [success, box] = this.actor.get_paint_box();
-        let x, y, width, height;
+        let x, y, width, height, px, py;
+        [px, py] = this.actor.get_position();
         if (success) {
             [x, y] = [box.x1, box.y1];
             [width, height] = [box.x2 - x, box.y2 - y];
         } else {
-            [x, y] = this.actor.get_position();
             [width, height] = this.actor.get_size();
         }
-        return [x, y, width, height];
+        return [px, py, width, height];
     },
 
+    /*
+     * set the anchor position (the position, where we grab the wndows with the mouse pointer)
+     */
     setAnchorPosition: function(x, y) {
+//        log('setAnchorPosition');
+
         let [ax, ay, width, height] = this._getActorDimensions();
         x -= ax; y -= ay;
 
         let gridX = Math.round(x / width * this.x_tiles);
-        let gridY = Math.round(y / height * this.x_tiles);
+        let gridY = Math.round(y / height * this.y_tiles);
 
         this._setAnchorObject(this._objectAt(gridX, gridY));
     },
 
     _invalidateModel: function() {
+//        log('invalidateModel');
+
         this._hasModel = false;
     },
 
     _createModel: function() {
+//        log('createModel');
+
         let actor = this.get_actor();
         if (!actor)
             return false;
@@ -159,8 +185,8 @@ const WobblyWindowEffect = new Lang.Class({
 
         this.objects = [];
 
-        for (let i = 0; i < xTiles + 1; i++) {
-            for (let j = 0; j < yTiles + 1; j++) {
+        for (let i = 0; i <= xTiles; i++) {
+            for (let j = 0; j <= yTiles; j++) {
                 let tx = j / xTiles;
                 let ty = i / yTiles;
 
@@ -178,8 +204,8 @@ const WobblyWindowEffect = new Lang.Class({
 
         this.springs = [];
 
-        for (let y = 0; y < yTiles + 1; y++) {
-            for (let x = 0; x < xTiles + 1; x++) {
+        for (let y = 0; y <= yTiles; y++) {
+            for (let x = 0; x <= xTiles; x++) {
                 if (x > 0) {
                     let objA = this._objectAt(x - 1, y);
                     let objB = this._objectAt(x, y);
@@ -199,6 +225,8 @@ const WobblyWindowEffect = new Lang.Class({
     },
 
     _ensureModel: function() {
+//        log('ensureModel');
+
         if (!this._hasModel)
             return this._createModel();
         return true;
@@ -211,24 +239,34 @@ const WobblyWindowEffect = new Lang.Class({
 
     _allocationChanged: function(actor, allocation, flags) {
         if (!this._oldAllocation) {
-            this._oldAllocation = allocation;
+            let [newX, newY] = allocation.get_origin();
+            let [newW, newH] = allocation.get_size();
+            this._oldX = newX;
+            this._oldY = newY;
+            this._oldW = newW;
+            this._oldH = newH;
+            this._oldAllocation = true;
             return;
         }
 
-        let [oldX, oldY] = this._oldAllocation.get_origin();
         let [newX, newY] = allocation.get_origin();
-        if (oldX != newX || oldY != newY)
-            this._positionChanged(oldX, oldY, newX, newY);
-
-        let [oldW, oldH] = this._oldAllocation.get_size();
         let [newW, newH] = allocation.get_size();
-        if (oldW != newW || oldH != newH)
+
+        if (this._oldX != newX || this._oldY != newY)
+            this._positionChanged(this._oldX, this._oldY, newX, newY);
+
+        if (this._oldW != newW || this._oldH != newH)
             this._invalidateModel();
 
-        this._oldAllocation = allocation;
+        this._oldX = newX;
+        this._oldY = newY;
+        this._oldW = newW;
+        this._oldH = newH;
     },
 
     _modelStep: function() {
+//        log('modelStep');
+
         if (!this._ensureModel())
             return;
 
@@ -260,6 +298,7 @@ const WobblyWindowEffect = new Lang.Class({
     },
 
     ungrabbed: function() {
+//        log('ungrabbed');
         // If we're wobbling, allow us to stop in the near future
         // when we stop wobbling. If we're not wobbling, remove
         // us now.
@@ -270,15 +309,20 @@ const WobblyWindowEffect = new Lang.Class({
     },
 
     remove: function() {
-        this.get_actor().remove_effect(this);
+//        log('remove');
+        let actor = this.get_actor();
+        if(actor)
+            actor.remove_effect(this);
     },
 
     _newFrame: function() {
+//        log('newFrame');
         this._modelStep();
         this.invalidate();
     },
 
     _dimm: function() {
+//        log('dimm');
         let x1, y1, x2, y2;
         x1 = x2 = this.objects[0].posX;
         y1 = y2 = this.objects[0].posY;
@@ -294,28 +338,11 @@ const WobblyWindowEffect = new Lang.Class({
         return [x1, y1, x2, y2];
     },
 
-    // vfunc_get_paint_volume: function(effect, volume) {
-    //     volume.set_origin(Clutter.Vertex.new(-2000, -2000, 0));
-    //     volume.set_width(2000);
-    //     volume.set_height(2000);
-    // },
-
-    // vfunc_get_paint_volume: function(effect, volume) {
-    //     return false;
-
-    //     if (!this._hasModel)
-    //         return true;
-
-    //     let [x1, y1, x2, y2] = this._dimm();
-
-    //     volume.set_origin(Clutter.Vertex.new(0, 0, 0));
-    //     volume.set_width(x2 - x1);
-    //     volume.set_height(y2 - y1);
-    //     return true;
-    // },
 
     _paintDebug: function() {
+//        log('paintDebug');
         let [x1, y1, x2, y2] = this._dimm();
+        let [ax, ay] = this.actor.get_position();
         Cogl.path_new();
         Cogl.set_source_color4f(0, 1, 0, 0.2);
         Cogl.path_rectangle(0, 0, x2 - x1, y2 - y1);
@@ -333,53 +360,55 @@ const WobblyWindowEffect = new Lang.Class({
             Cogl.path_line_to(x2, y2);
         }
 
-        // let xTiles = this.x_tiles + 1;
-        // let yTiles = this.y_tiles + 1;
+        let xTiles = this.x_tiles + 1;
+        let yTiles = this.y_tiles + 1;
 
-        // Cogl.path_new();
-        // Cogl.set_source_color4f(1, 0, 0, 1);
+        Cogl.path_new();
+        Cogl.set_source_color4f(1, 0, 0, 1);
 
-        // for (let x = 0; x < xTiles; x++) {
-        //     for (let y = 0; y < yTiles; y++) {
-        //         let o = this._objectAt(x, y);
-        //         point(o.posX, o.posY);
-        //     }
-        // }
-        // Cogl.path_fill();
+        for (let x = 0; x < xTiles; x++) {
+            for (let y = 0; y < yTiles; y++) {
+                let o = this._objectAt(x, y);
+                point(o.posX, o.posY);
+            }
+        }
+        Cogl.path_fill();
 
-        // Cogl.path_new();
-        // Cogl.set_source_color4f(0, 1, 0, 1);
-        // for (let x = 0; x < xTiles; x++) {
-        //     for (let y = 0; y < yTiles; y++) {
-        //         let o = this._objectAt(x, y);
+        Cogl.path_new();
+        Cogl.set_source_color4f(0, 1, 0, 1);
+        for (let x = 0; x < xTiles; x++) {
+            for (let y = 0; y < yTiles; y++) {
+                let o = this._objectAt(x, y);
 
-        //         if (x > 0) {
-        //             let left = this._objectAt(x - 1, y);
-        //             line(left.posX, left.posY, o.posX, o.posY);
-        //         }
+                if (x > 0) {
+                    let left = this._objectAt(x - 1, y);
+                    line(left.posX, left.posY, o.posX, o.posY);
+                }
 
-        //         if (y > 0) {
-        //             let top = this._objectAt(x, y - 1);
-        //             line(top.posX, top.posY, o.posX, o.posY);
-        //         }
-        //     }
-        // }
-        // Cogl.path_stroke();
+                if (y > 0) {
+                    let top = this._objectAt(x, y - 1);
+                    line(top.posX, top.posY, o.posX, o.posY);
+                }
+            }
+        }
+        Cogl.path_stroke();
     },
 
-    // vfunc_paint_target: function() {
-    //     this.parent();
-    //     this._paintDebug();
-    // },
+/*    vfunc_paint_target: function() {
+        this.parent();
+        this._paintDebug();
+    },*/
 
-    vfunc_notify: function(effect, pspec) {
+    vfunc_notify: function(pspec) {
+//        log('vfunc_notify');
         // If someone changes the tile properties on us, make sure
         // to build a new model next time.
         if (pspec.name == "x-tiles" || pspec.name == "y-tiles" && this._hasModel)
             this._invalidateModel();
     },
 
-    vfunc_deform_vertex: function(effect, width, height, vertex) {
+    vfunc_deform_vertex: function(width, height, vertex) {
+//        log('vfunc_deform_vertex');
         let i = Math.floor(vertex.tx * this.x_tiles);
         let j = Math.floor(vertex.ty * this.y_tiles);
         let obj = this._objectAt(i, j);
@@ -388,8 +417,20 @@ const WobblyWindowEffect = new Lang.Class({
 
         // Objects are in the space of the actor's parent, and these
         // vertexes are in the space of the actor.
+
+//        log(' [in] vertex.x = ' + vertex.x);
+//        log(' [in]  vertex.y = ' + vertex.y);
+
         vertex.x = obj.posX - ax;
         vertex.y = obj.posY - ay;
+
+//        test code to test deform effect
+//        vertex.x += Math.random() * 20 - 10;
+//        vertex.y += Math.random() * 20 - 10;
+
+
+//        log(' [out] vertex.x = ' + vertex.x);
+//        log(' [out]  vertex.y = ' + vertex.y);
 
         // Put any anchor vertex on top of other vertices to make
         // things look right.
@@ -397,10 +438,12 @@ const WobblyWindowEffect = new Lang.Class({
             vertex.z = 1;
     },
 
-    vfunc_set_actor: function(effect, actor) {
+    vfunc_set_actor: function(actor) {
+//        log('vfunc_set_actor');
+
         let oldActor = this.get_actor();
 
-        if (this._allocationChangedId > 0) {
+        if (oldActor && this._allocationChangedId > 0) {
             oldActor.disconnect(this._allocationChangedId);
             this._allocationChangedId = 0;
         }
@@ -426,49 +469,42 @@ const WobblyWindowEffect = new Lang.Class({
     }
 });
 
+
 let _beginGrabOpId;
 let _endGrabOpId;
 
-function onBeginGrabOp(display, op, window) {
-    if (window.is_override_redirect())
-        return;
-
-    if (op != Meta.GrabOp.MOVING)
-        return;
-
+function onBeginGrabOp(display, screen, window, op) {
+//    log('begin grab');
     let actor = window.get_compositor_private();
+    if(actor) {
+        let effect;
+        effect = actor.get_effect('wobbly');
+        if (!effect) {
+            effect = new WobblyWindowEffect({ x_tiles: X_TILES, y_tiles: Y_TILES });
+            actor.add_effect_with_name('wobbly', effect);
+        }
 
-    let effect;
-    effect = actor.get_effect('wobbly');
-    if (!effect) {
-        effect = new WobblyWindowEffect({ x_tiles: X_TILES, y_tiles: Y_TILES });
-        actor.add_effect_with_name('wobbly', effect);
+        let [x, y, mods] = global.get_pointer();
+        effect.setAnchorPosition(x, y);
     }
-
-    let [x, y, mods] = global.get_pointer();
-    effect.setAnchorPosition(x, y);
 }
 
-function onEndGrabOp(display, op, window) {
-    if (window.is_override_redirect())
-        return;
-
-    if (op != Meta.GrabOp.MOVING)
-        return;
-
+function onEndGrabOp(display, screen, window, op) {
+//    log('end grab');
     let actor = window.get_compositor_private();
-
-    let effect = actor.get_effect('wobbly');
-    if (effect)
-        effect.ungrabbed();
+    if(actor) {
+        let effect = actor.get_effect('wobbly');
+        if (effect)
+            effect.ungrabbed();
+    }
 }
 
 function init() {
 }
 
 function enable() {
-    _beginGrabOpId = global.display.connect('begin-grab-op', onBeginGrabOp);
-    _endGrabOpId = global.display.connect('end-grab-op', onEndGrabOp);
+    _beginGrabOpId = global.display.connect('grab-op-begin', onBeginGrabOp);
+    _endGrabOpId = global.display.connect('grab-op-end', onEndGrabOp);
 }
 
 function disable() {
