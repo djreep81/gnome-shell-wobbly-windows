@@ -1,4 +1,3 @@
-
 const Lang = imports.lang;
 const Mainloop = imports.mainloop;
 const System = imports.system;
@@ -7,11 +6,11 @@ const Cogl = imports.gi.Cogl;
 const Clutter = imports.gi.Clutter;
 const Meta = imports.gi.Meta;
 
-const X_TILES = 4;
-const Y_TILES = 4;
-const FRICTION = 2;
-const SPRING_K = 7;
-const MASS = 8;
+const X_TILES = 2;
+const Y_TILES = 2;
+const FRICTION = 4;
+const SPRING_K = 10;
+const MASS = 17;
 
 const WobblyWindowObject = new Lang.Class({
     Name: 'WobblyWindowObject',
