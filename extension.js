@@ -1,4 +1,3 @@
-
 const Lang = imports.lang;
 const Mainloop = imports.mainloop;
 const System = imports.system;
@@ -7,11 +6,11 @@ const Cogl = imports.gi.Cogl;
 const Clutter = imports.gi.Clutter;
 const Meta = imports.gi.Meta;
 
-const X_TILES = 4;
-const Y_TILES = 4;
-const FRICTION = 2;
-const SPRING_K = 7;
-const MASS = 8;
+const X_TILES = 2;
+const Y_TILES = 2;
+const FRICTION = 4;
+const SPRING_K = 10;
+const MASS = 17;
 
 const WobblyWindowObject = new Lang.Class({
     Name: 'WobblyWindowObject',
@@ -138,20 +137,49 @@ const WobblyWindowEffect = new Lang.Class({
      * returns dimensions of an actor
      */
     _getActorDimensions: function() {
-//        log('getActorDimmensions');
-
+        //log('getActorDimmensions');
+        //this._logActor(this.actor);
         let [success, box] = this.actor.get_paint_box();
         let x, y, width, height, px, py;
         [px, py] = this.actor.get_position();
         if (success) {
             [x, y] = [box.x1, box.y1];
-            [width, height] = [box.x2 - x, box.y2 - y];
+            if (px > 0  &&  py > 0) {
+              [width, height] = [box.get_width() , box.get_height()  ];
+            } else {
+               [width, height] = this.actor.get_size();
+            }
         } else {
             [width, height] = this.actor.get_size();
         }
         return [px, py, width, height];
     },
 
+    _logActor: function( actor_obj ) {
+        log('clip height         :'+actor_obj.clip.height+ '\twidth:' + actor_obj.clip.width);
+        log('clip height         :'+actor_obj.get_clip().height+ '\twidth:' + actor_obj.get_clip().width);
+        log('clip rect rheight   :'+actor_obj.clip_rect.get_height()+ '\twidth:' + actor_obj.clip_rect.get_width());
+        log('alloc height        :'+actor_obj.allocation.get_height()+ '\twidth:' + actor_obj.allocation.get_width());
+        log('nat height          :'+actor_obj.natural_height+ '\twidth:' + actor_obj.natural_width);
+        log('scale height        :'+actor_obj.scale_y+ '\twidth:' + actor_obj.scale_x);
+        log('height              :'+actor_obj.height + '\twidth:' + actor_obj.width);
+        log('dpv height          :'+actor_obj.get_default_paint_volume().get_height()+ '\tcwidth:' + actor_obj.get_default_paint_volume().get_width());
+        log('pv height           :'+actor_obj.get_paint_volume().get_height()+ '\tcwidth:' + actor_obj.get_paint_volume().get_width());
+        log('geom height         :'+actor_obj.get_geometry().height + '\tcwidth:' + actor_obj.get_geometry().width);
+        log('alloc geom cheight  :'+actor_obj.get_allocation_geometry().height + '\tcwidth:' + actor_obj.get_allocation_geometry().width);
+
+        let [success, boxp] = actor_obj.get_paint_box();
+        let  boxa =  actor_obj.get_allocation_box();
+        let  boxc =  actor_obj.get_content_box();
+        this._mylog('paint_box  ',boxp);
+        this._mylog('allocat_box',boxa);
+        this._mylog('content_box',boxc);
+
+    },
+
+    _mylog: function(name,  box) {
+      log(name + '\tx1:' +  box.x1 + '\tx2:' + box.x2 + '\ty:' +  box.y1 + '\ty2:' + box.y2 + '\tw:' + box.get_width() + '\th:' + box.get_height() );
+    },
     /*
      * set the anchor position (the position, where we grab the wndows with the mouse pointer)
      */
