@@ -138,16 +138,23 @@ const WobblyWindowEffect = new Lang.Class({
      */
     _getActorDimensions: function() {
         //log('getActorDimmensions');
-        //this._logActor(this.actor);
+        //this._logActor(this.actor.get_parent());
         let [success, box] = this.actor.get_paint_box();
+        let boxc = this.actor.get_content_box();
         let x, y, width, height, px, py;
         [px, py] = this.actor.get_position();
+        let parent_height = this.actor.get_parent().get_paint_volume().get_height();
+        let parent_width = this.actor.get_parent().get_paint_volume().get_width();
+
         if (success) {
             [x, y] = [box.x1, box.y1];
-            if (px > 0  &&  py > 0) {
-              [width, height] = [box.get_width() , box.get_height()  ];
+            if (( 0 <= px  && px + box.get_width() <= parent_width) && 
+                ( 0 <= py && py + box.get_height() <= parent_height)) {
+              [width, height] = [box.get_width() , box.get_height()];
             } else {
-               [width, height] = this.actor.get_size();
+              //since the actor.get_size does not relect the correct value, this will cause the window to shrink slightly
+              //this is only called when the window is partially off the screen
+              [width, height] = this.actor.get_size();
             }
         } else {
             [width, height] = this.actor.get_size();
