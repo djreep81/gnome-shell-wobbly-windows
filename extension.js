@@ -138,9 +138,8 @@ const WobblyWindowEffect = new Lang.Class({
      */
     _getActorDimensions: function() {
         //log('getActorDimmensions');
-        //this._logActor(this.actor.get_parent());
+        //this._logActor(this.actor());
         let [success, box] = this.actor.get_paint_box();
-        let boxc = this.actor.get_content_box();
         let x, y, width, height, px, py;
         [px, py] = this.actor.get_position();
         let parent_height = this.actor.get_parent().get_paint_volume().get_height();
