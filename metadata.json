@@ -9,9 +9,10 @@
     "3.10",
     "3.12",
     "3.14",
-    "3.16"
+    "3.16",
+    "3.18"
   ], 
   "url": "", 
   "uuid": "wobbly-windows@mecheye.net", 
-  "version": 11
+  "version": 12
 }
