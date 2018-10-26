@@ -147,7 +147,7 @@ const WobblyWindowEffect = new Lang.Class({
 
         if (success) {
             [x, y] = [box.x1, box.y1];
-            if (( 0 <= px  && px + box.get_width() <= parent_width) && 
+            if (( 0 <= px  && px + box.get_width() <= parent_width) &&
                 ( 0 <= py && py + box.get_height() <= parent_height)) {
               [width, height] = [box.get_width() , box.get_height()];
             } else {
@@ -272,6 +272,7 @@ const WobblyWindowEffect = new Lang.Class({
     },
 
     _allocationChanged: function(actor, allocation, flags) {
+//        log("Allocation changed")
         if (!this._oldAllocation) {
             let [newX, newY] = allocation.get_origin();
             let [newW, newH] = allocation.get_size();
@@ -506,30 +507,47 @@ const WobblyWindowEffect = new Lang.Class({
 
 let _beginGrabOpId;
 let _endGrabOpId;
+let _onWindowResizeOpId;
+
+function onWindowSizeChanged(window) {
+  let actor = window.get_compositor_private();
+  if(actor) {
+      let effect = actor.get_effect('wobbly');
+      if (effect) {
+          effect.ungrabbed();
+      }
+  }
+}
 
 function onBeginGrabOp(display, screen, window, op) {
 //    log('begin grab');
-    let actor = window.get_compositor_private();
-    if(actor) {
-        let effect;
-        effect = actor.get_effect('wobbly');
-        if (!effect) {
-            effect = new WobblyWindowEffect({ x_tiles: X_TILES, y_tiles: Y_TILES });
-            actor.add_effect_with_name('wobbly', effect);
-        }
+    if (window) {
+      let _onWindowResizeOpId = window.connect('size-changed', onWindowSizeChanged);
+      let actor = window.get_compositor_private();
+      if(actor) {
+          let effect;
+          effect = actor.get_effect('wobbly');
+          if (!effect) {
+              effect = new WobblyWindowEffect({ x_tiles: X_TILES, y_tiles: Y_TILES });
+              actor.add_effect_with_name('wobbly', effect);
+          }
 
-        let [x, y, mods] = global.get_pointer();
-        effect.setAnchorPosition(x, y);
+          let [x, y, mods] = global.get_pointer();
+          effect.setAnchorPosition(x, y);
+      }
     }
 }
 
 function onEndGrabOp(display, screen, window, op) {
 //    log('end grab');
-    let actor = window.get_compositor_private();
-    if(actor) {
-        let effect = actor.get_effect('wobbly');
-        if (effect)
-            effect.ungrabbed();
+    if (window) {
+      window.disconnect(_onWindowResizeOpId);
+      let actor = window.get_compositor_private();
+      if(actor) {
+          let effect = actor.get_effect('wobbly');
+          if (effect)
+              effect.ungrabbed();
+      }
     }
 }
 
