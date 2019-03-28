@@ -267,8 +267,10 @@ const WobblyWindowEffect = new Lang.Class({
     },
 
     _positionChanged: function(oldX, oldY, newX, newY) {
-        if (this._anchorObject)
+        if (this._anchorObject){
+	     refreshWindow(this.get_actor());
             this._anchorObject.move(newX - oldX, newY - oldY);
+	}
     },
 
     _allocationChanged: function(actor, allocation, flags) {
@@ -322,6 +324,7 @@ const WobblyWindowEffect = new Lang.Class({
             this.isWobbling = true;
 
         const epsilon = 0.2;
+	refreshWindow(this.get_actor());
 
         // If the user is still grabbing on to the window, we don't
         // want to remove the effect, even if we've temporarily stopped
@@ -531,6 +534,12 @@ function onEndGrabOp(display, screen, window, op) {
         if (effect)
             effect.ungrabbed();
     }
+}
+
+function refreshWindow(actor) {
+//  hides and shows the window quickly
+    actor.hide();
+    actor.show();
 }
 
 function init() {
